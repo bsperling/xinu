@@ -44,7 +44,6 @@ void pick_up_forks(int ph_num)
      test(ph_num);
      signal(mutex);
      wait(sem[ph_num]);
-     sleepms(2);
 }
 
 void put_down_forks(int ph_num)
@@ -60,13 +59,13 @@ void put_down_forks(int ph_num)
 void think(int ph_num)
 {
 	kprintf("Philosopher %d is Thinking\n",ph_num+1);
-	sleepms(2);
+	//sleep(10);
 }
 
 void eat(int ph_num)
 {
 	kprintf("Philosopher %d is Eating\n",ph_num+1);
-	sleepms(2);
+	//sleep(10);
 }
 
 
@@ -74,7 +73,7 @@ void test(int ph_num)
 {
     if (state[ph_num] == HUNGRY && state[LEFT] != EATING && state[RIGHT] != EATING){
         state[ph_num] = EATING;
-        sleepms(2);
+        sleep(2);
             kprintf("Philosopher %d takes fork %d and %d\n",ph_num+1,LEFT+1,ph_num+1);
             kprintf("Philosopher %d is Eating\n",ph_num+1);
         signal(sem[ph_num]);
@@ -94,7 +93,7 @@ int main(int argc, char **argv)
 	ph_num = 0;
 	for(ph_num; ph_num<N; ph_num++)
 	{
-		resume(create(philosopher, 4096, 2, "Philosopher", 1, ph_num));
+		resume(create(philosopher, 4096, 50, "Philosopher", 1, ph_num));
 	}
 
 
