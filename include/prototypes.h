@@ -320,3 +320,14 @@ extern	void	xdone(void);
 
 /* in file yield.c */
 extern	syscall	yield(void);
+
+/* Functions for Lab 2 (send/receive messages) */
+extern syscall sendMsg(pid32, umsg32);
+
+extern uint32 sendMsgs(pid32, umsg32*, uint32);
+
+extern uint32 sendnMsg(uint32, pid32*, umsg32);
+
+extern umsg32 receiveMsg(void);
+
+extern syscall receiveMsgs(umsg32*, uint32);

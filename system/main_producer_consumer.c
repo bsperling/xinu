@@ -1,4 +1,9 @@
 /*  main.c  - main */
+// Bryce Sperling
+
+/*
+The producer-consumer problem utilizes 2 processes that share a circular buffer to store information and data. This can cause many problems which are mitigated by correct usage of semaphores. Problems that cound ensure are most dangerously, race conditions, in which two processes both attempt to access or change a value in a location in memory leaving one of the processes with an incorrect value in the memory location. Semaphores also make sure the producer won't add data into a full buffer or the consumer wont remove data from an empty buffer. If implimented incorrectly, this could also produce deadlock, such as in the scenario of just using sleep and wake-up calls when the buffer is empty or full.
+*/
 
 #include <xinu.h>
 #include <stdio.h>
