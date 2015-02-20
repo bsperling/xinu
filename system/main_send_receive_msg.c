@@ -10,35 +10,38 @@
 syscall sendMsg(pid32 pid, umsg32 msg);
 uint32 sendMsgs(pid32 pid, umsg32* msgs, uint32 msg_count);
 umsg32 receiveMsg(void);
-//syscall receiveMsgs(umsg32* msgs, uint32 msgs_count);
+syscall receiveMsgs(umsg32* msgs, uint32 msgs_count);
 
 uint32 sendnMsg(uint32 pid_count, pid32* pids, umsg32 msg);
 
 void pushItem (pid32 pid, umsg32 msg);
 umsg32 popItem (pid32 pid);
 void testSender (void);
-void testReceiver (void);
+void testReceiverSingle (void);
+void testReceiverMultiple (uint32 msg_count);
 
+# define QUEUE_SIZE 10
+# define HEAD pointers[pid][0]
+# define TAIL pointers[pid][1]
+# define SIZE (QUEUE_SIZE - (pointers[pid][0] - pointers[pid][1])) % QUEUE_SIZE
 
-umsg32 msgBuffers[10][10] = {{0}}; //10 processes with queues for msgs
+umsg32 msgBuffers[10][QUEUE_SIZE] = {{0}}; //10 processes with queues for msgs
 uint32 pointers[10][2] = {{0}}; //10 processes with head and tail
 pid32 receiver1, receiver2, receiver3, receiver4, receiver5;
 
-# define HEAD pointers[pid][0]
-# define TAIL pointers[pid][1]
 
 
 
 int main(int argc, char **argv)
 {
 
-	receiver1 = create(testReceiver, 4096, 50, "Receiver1", 0, 0);
-	receiver2 = create(testReceiver, 4096, 50, "Receiver2", 0, 0);
-	receiver3 = create(testReceiver, 4096, 50, "Receiver3", 0, 0);
+	receiver1 = create(testReceiverMultiple, 4096, 50, "Receiver1", 1, 2);
+	receiver2 = create(testReceiverSingle, 4096, 50, "Receiver2", 0, 0);
+	receiver3 = create(testReceiverMultiple, 4096, 50, "Receiver3", 1, 4);
 
-	kprintf("%d\n", receiver1);
-	kprintf("%d\n", receiver2);
-	kprintf("%d\n", receiver3);
+	//kprintf("%d\n", receiver1);
+	//kprintf("%d\n", receiver2);
+	//kprintf("%d\n", receiver3);
 	resume(receiver1);
 	resume(receiver2);
 	resume(receiver3);
@@ -55,35 +58,41 @@ int main(int argc, char **argv)
 }
 
 void testSender(void) {
-	umsg32 sentMessages = 0;
-	while (TRUE) {
+	umsg32 sentSingleMessages = 0;
+	umsg32 sentMultiReceiverMessages = 1000;
+	//while (TRUE) {
+	uint32 testCount;
+	for(testCount = 0; testCount<2; testCount++) {
 
-		/*Testing single sendMsg() */
-/*		if(sendMsg(receiver1, sentMessages++) == SYSERR)
+		/* Testing single sendMsg() {1} */
+		if(sendMsg(receiver1, sentSingleMessages++) == SYSERR)
 		{
 			kprintf("Message not sent.\n");
-		}*/
+		}
 
-		/*Testing send multiple messages sendMsgs() */
-/*		umsg32 msgs[8] = {1, 1, 2, 3, 5, 8, 13, 21};
-		if(sendMsgs(receiver2, msgs, 8) == SYSERR)
+		/* Testing send multiple messages sendMsgs() {3} */
+		umsg32 msgs[8] = {1, 1, 2, 3, 5, 8, 13, 21};
+		//umsg32 msgs[4] = {1, 3, 5, 7};
+		if(sendMsgs(receiver3, msgs, 8) == SYSERR)
 		{
 			kprintf("Multiple message send failed.\n");
-		}*/
+		}
 
-		/*Testing send a message to multiple receivers */
+		/* Testing send a message to multiple receivers {1,2,3} */
 		pid32 receivers[3] = {receiver1, receiver2, receiver3};
-		if (sendnMsg(3, receivers, sentMessages++) != 3)
+		if (sendnMsg(3, receivers, sentMultiReceiverMessages++) != 3)
 		{
 			kprintf("Multiple receiver send failed.\n");
 		}
-
 	}
 	
 }
 
-void testReceiver(void) {
-	while (TRUE) {
+/* Tests receiving individual messages */
+void testReceiverSingle(void) {
+	//while (TRUE) {
+	uint32 testCount;
+	for(testCount = 0; testCount<2; testCount++) {
 		umsg32 msg = receiveMsg();
 		if (msg == SYSERR)
 		{
@@ -91,6 +100,30 @@ void testReceiver(void) {
 		}
 	}	
 }
+
+/*Tests receiving multiple messages at a time */
+void testReceiverMultiple(uint32 msg_count) {
+	//while (TRUE) {
+	uint32 testCount;
+	for(testCount = 0; testCount<2; testCount++) {
+		umsg32 msgs[msg_count];
+		if (receiveMsgs(msgs, msg_count) == SYSERR) //Shouldn't ever happen
+		{
+			kprintf("%d messages not received.\n", msg_count);
+		}
+	}	
+}
+
+/* Tests receiving multiple messages at a time sent via different means*/
+/*void testReceiver3(void) {
+	while (TRUE) {
+		umsg32 msgs = receiveMsg();
+		if (msg == SYSERR)
+		{
+			kprintf("Message not received.\n");
+		}
+	}	
+}*/
 
 void pushItem (pid32 pid, umsg32 msg) {
 	msgBuffers[pid][TAIL] = msg;
@@ -121,24 +154,27 @@ syscall	sendMsg(
 	mask = disable();
 	if (isbadpid(pid)) {
 		restore(mask);
+		kprintf("BAD PID");
 		return SYSERR;
 	}
 
 	prptr = &proctab[pid];
 	if (prptr->prstate == PR_FREE) {
 		restore(mask);
+		kprintf("FREE PROCESS");
 		return SYSERR;
 	}
 
 	if (msgBuffers[pid][TAIL] != 0) //Queue of receiver is full
 	{
 		restore(mask);
+		kprintf("FULL QUEUE");
 		return SYSERR;
 	}
 	else
 	{
 		pushItem(pid, msg);
-		kprintf("Message ""%d"" sent to process %d\n", msg, pid);
+		kprintf("Message ""%d"" sent to process %d.\n", msg, pid);
 	}
 
 	/* If recipient waiting or in timed-wait make it ready */
@@ -209,9 +245,6 @@ uint32 sendMsgs(
 }
 
 
-//syscall receiveMsgs(umsg32* msgs, uint32 msgs_count);
-
-
 /*------------------------------------------------------------------------
  *  sendnMsg  -  pass message to multiple receiver processes
  *------------------------------------------------------------------------
@@ -242,4 +275,46 @@ uint32 sendnMsg(
 }
 
 
+/*------------------------------------------------------------------------
+ *  receiveMsgs  -  wait then receive messages when queue reaches a certain size
+ *------------------------------------------------------------------------
+ */
+syscall	receiveMsgs(
+	  umsg32*	msgs,		/* ID of recipient process	*/
+	  uint32	msg_count	/* contents of message		*/
+	)
+{
+	intmask	mask;			/* saved interrupt mask		*/
+	struct	procent *prptr;	/* ptr to process' table entry	*/
 
+	pid32 pid = getpid(); //Get current process pid
+	mask = disable();
+	prptr = &proctab[currpid];
+
+
+	if (msg_count > 10)	//Check if msg_count is larger than the queue size
+		return SYSERR;
+	else if (HEAD == TAIL) //Queue is empty, No message waiting
+	{
+		prptr->prstate = PR_RECV;
+		resched();		/* block until messages arrives	*/
+	}
+
+	if (SIZE < msg_count)
+	{
+		prptr->prstate = PR_RECV;
+		resched();		/* block until messages arrives	*/
+	}
+
+
+	int i;
+	for(i=0;i<msg_count;i++)	/* retrieve messages in order  */
+	{
+		msgs[i] = receiveMsg();
+	}
+
+	kprintf("%d messages received by process %d.\n", msg_count, pid);
+
+	restore(mask);
+	return OK;
+}
