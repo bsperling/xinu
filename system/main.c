@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 
 	receiver1 = create(testReceiverMultiple, 4096, 50, "Receiver1", 1, 2);
 	receiver2 = create(testReceiverSingle, 4096, 50, "Receiver2", 0, 0);
-	receiver3 = create(testReceiverMultiple, 4096, 50, "Receiver3", 1, 4);
+	receiver3 = create(testReceiverMultiple, 4096, 50, "Receiver3", 1, 3);
 
 	//kprintf("%d\n", receiver1);
 	//kprintf("%d\n", receiver2);
@@ -62,7 +62,7 @@ void testSender(void) {
 	umsg32 sentMultiReceiverMessages = 1000;
 	//while (TRUE) {
 	uint32 testCount;
-	for(testCount = 0; testCount<2; testCount++) {
+	for(testCount = 0; testCount<3; testCount++) {
 
 		/* Testing single sendMsg() {1} */
 		if(sendMsg(receiver1, sentSingleMessages++) == SYSERR)
@@ -90,9 +90,9 @@ void testSender(void) {
 
 /* Tests receiving individual messages */
 void testReceiverSingle(void) {
-	//while (TRUE) {
-	uint32 testCount;
-	for(testCount = 0; testCount<2; testCount++) {
+	while (TRUE) {
+	//uint32 testCount;
+	//for(testCount = 0; testCount<1; testCount++) {
 		umsg32 msg = receiveMsg();
 		if (msg == SYSERR)
 		{
@@ -103,9 +103,9 @@ void testReceiverSingle(void) {
 
 /*Tests receiving multiple messages at a time */
 void testReceiverMultiple(uint32 msg_count) {
-	//while (TRUE) {
-	uint32 testCount;
-	for(testCount = 0; testCount<2; testCount++) {
+	while (TRUE) {
+	//uint32 testCount;
+	//for(testCount = 0; testCount<1; testCount++) {
 		umsg32 msgs[msg_count];
 		if (receiveMsgs(msgs, msg_count) == SYSERR) //Shouldn't ever happen
 		{
@@ -154,21 +154,21 @@ syscall	sendMsg(
 	mask = disable();
 	if (isbadpid(pid)) {
 		restore(mask);
-		kprintf("BAD PID");
+		kprintf("BAD PID FOR PROCESS %d\t", pid);
 		return SYSERR;
 	}
 
 	prptr = &proctab[pid];
 	if (prptr->prstate == PR_FREE) {
 		restore(mask);
-		kprintf("FREE PROCESS");
+		kprintf("FREE PROCESS\t");
 		return SYSERR;
 	}
 
 	if (msgBuffers[pid][TAIL] != 0) //Queue of receiver is full
 	{
 		restore(mask);
-		kprintf("FULL QUEUE");
+		kprintf("FULL QUEUE\t");
 		return SYSERR;
 	}
 	else
@@ -300,7 +300,7 @@ syscall	receiveMsgs(
 		resched();		/* block until messages arrives	*/
 	}
 
-	if (SIZE < msg_count)
+	while (SIZE < msg_count)
 	{
 		prptr->prstate = PR_RECV;
 		resched();		/* block until messages arrives	*/
